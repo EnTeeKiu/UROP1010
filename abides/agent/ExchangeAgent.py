@@ -307,7 +307,7 @@ class ExchangeAgent(FinancialAgent):
         levels, freq, last_agent_update = values[0], values[1], values[2]
         orderbook_last_update = self.order_books[symbol].last_update_ts
         if (freq == 0) or \
-           ((orderbook_last_update > last_agent_update) and ((orderbook_last_update - last_agent_update).delta >= freq)):
+           ((orderbook_last_update > last_agent_update) and ((orderbook_last_update - last_agent_update).value >= freq)):
           self.sendMessage(agent_id, Message({"msg": "MARKET_DATA",
                                               "symbol": symbol,
                                               "bids": self.order_books[symbol].getInsideBids(levels),
@@ -363,7 +363,7 @@ class ExchangeAgent(FinancialAgent):
 
         # Create a fully populated index at the desired frequency from market open to close.
         # Then project the logged data into this complete index.
-        time_idx = pd.date_range(self.mkt_open, self.mkt_close, freq=self.book_freq, closed='right')
+        time_idx = pd.date_range(self.mkt_open, self.mkt_close, freq=self.book_freq, inclusive='right')
         dfLog = dfLog.reindex(time_idx, method='ffill')
         dfLog.sort_index(inplace=True)
 
@@ -384,7 +384,7 @@ class ExchangeAgent(FinancialAgent):
       # Final cleanup
       if not self.wide_book:
         dfLog.rename('Volume')
-        df = pd.SparseDataFrame(index=dfLog.index)
+        df = pd.DataFrame(index=dfLog.index)
         df['Volume'] = dfLog
       else:
         df = dfLog
