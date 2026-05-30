@@ -18,7 +18,7 @@ I have successfully resolved the compatibility issues and completed the executio
 
 The simulation ran successfully with seed `12345` and generated the following plot demonstrating a healthy baseline market:
 
-![Experiment 1 Analysis Plot](../Visualization/exp1_baseline_analysis.png)
+![Experiment 1 Analysis Plot](./exp1_baseline_analysis.png)
 
 > [!NOTE] 
 > The metrics show that the market is stable and behaving as expected for a baseline continuous double auction.
