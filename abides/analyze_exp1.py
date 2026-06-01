@@ -228,7 +228,10 @@ def main():
     # Analysis
     # ──────────────────────────────────────────────────────────────
     fig, axes = plt.subplots(3, 1, figsize=(14, 12), sharex=False)
-    fig.suptitle('Experiment 1: Baseline Market Reproduction', fontsize=16, fontweight='bold')
+    
+    exp_num = "2" if "exp2" in log_dir else "1"
+    title_text = 'Experiment 2: LLM Market Baseline Reproduction' if exp_num == "2" else 'Experiment 1: Baseline Market Reproduction'
+    fig.suptitle(title_text, fontsize=16, fontweight='bold')
 
     has_plot = False
 
@@ -303,7 +306,8 @@ def main():
     plt.tight_layout()
 
     # Save figure
-    output_file = os.path.join(log_dir, 'exp1_baseline_analysis.png')
+    img_name = 'exp2_llm_baseline_analysis.png' if "exp2" in log_dir else 'exp1_baseline_analysis.png'
+    output_file = os.path.join(log_dir, img_name)
     plt.savefig(output_file, dpi=150, bbox_inches='tight')
     print("Analysis figure saved to: {}".format(output_file))
     print()
