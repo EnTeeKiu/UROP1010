@@ -9,6 +9,7 @@ Usage:
 Example:
     python run_exp2.py --seed 12345
 """
+# 2nd exp
 
 import argparse
 import subprocess
