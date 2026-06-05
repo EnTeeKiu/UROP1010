@@ -1,0 +1,91 @@
+Experiment 3: Minimal Baseline — Version 2 (exp3_minimal_v2)
+=============================================================
+
+Overview
+--------
+This is the second iteration of the Minimal prompt design for Experiment 3.
+It uses the same market structure as Version 1 (1 LLM + 9 traditional agents), 
+but applies four targeted changes to the MinimalAgent to encourage more active trading
+while remaining within the "Minimal" prompt philosophy (no Chain-of-Thought reasoning,
+no JSON formatting — just a terse single-line output).
+
+The original (V1) minimal agent achieved 100% parse reliability but generated
+zero PnL, spending most of its 119 wakeups choosing HOLD. Version 2 aims to increase
+trading activity and test whether the LLM makes better use of market information
+when given a price anchor and a clearer incentive to act.
+
+Experiment Configuration (identical to V1)
+------------------------------------------
+- Market Model: Continuous Double Auction (CDA)
+- Total Agents: 10
+  - 1 Exchange Agent (Order Book matching)
+  - 3 Zero Intelligence (ZIC) Agents (Randomized limit orders)
+  - 3 Heuristic Belief Learning Agents (Adaptive ZIP-like learning)
+  - 2 Value Agents (Provide liquidity based on fundamental value)
+  - 1 Momentum Agent (Trend following)
+  - 1 Minimal LLM Agent V2 (Using Ollama / gemma3:4b)
+- Duration: 2 Hours (09:30 - 11:30)
+- Seed: 12345
+
+What Changed vs. Version 1
+---------------------------
+Four targeted modifications were made to MinimalAgentV2.py:
+
+  Change 1 — HOLD Reframing (Prompt Wording)
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  V1: "BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD"
+  V2: Adds the line: "BUY below mid to profit. SELL above mid to profit. HOLD only if no edge."
+
+  Rationale: LLMs are influenced by framing. In V1, HOLD was presented as a neutral
+  equal third option. By framing HOLD as "no edge = passive = zero profit", the model
+  is nudged to prefer BUY or SELL when there is any marginal signal.
+
+  Change 2 — Mid-Price Signal (New Prompt Variable)
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  V1 Prompt: "bid=100000 (500) ask=100020 (300) last=100010"
+  V2 Prompt: "bid=100000 (500) ask=100020 (300) last=100010 mid=100010"
+
+  Rationale: Without a reference price, the LLM had no anchor for deciding whether
+  to buy or sell. The mid-price (bid+ask)/2 is the industry-standard proxy for fair
+  value. BUY below mid = getting a discount. SELL above mid = getting a premium.
+  This gives the model a trivial, computable decision signal.
+
+  Change 4 — max_tokens raised (24 → 32)
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  V1: max_tokens=24
+  V2: max_tokens=32
+
+  Rationale: At 24 tokens, the output budget was extremely tight. A response like
+  "BUY 100000 5" already uses ~7 tokens. If the model started with any prefix word
+  (e.g. "Action: BUY 100000 5"), it could be cut off mid-sentence, causing a parse
+  failure. Raising to 32 gives a safety margin without opening the door to
+  conversational text drift.
+
+  Change 5 — Temperature raised (0.1 → 0.4)
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  V1: temperature=0.1
+  V2: temperature=0.4
+
+  Rationale: Temperature=0.1 makes the LLM almost deterministic. If its "default"
+  answer is HOLD, it will output HOLD nearly 100% of the time. Raising to 0.4
+  introduces controlled stochasticity, allowing the model to explore BUY/SELL
+  decisions more frequently. This is a deliberate trade-off: we expect parse
+  reliability to remain high, but may see a slight increase in parse failures
+  compared to V1.
+
+The V2 Prompt (full example)
+-----------------------------
+  You are a trader. Maximize profit.
+  All prices are in cents (e.g. 100000 = $1000.00).
+  bid=100000 (500) ask=100020 (300) last=100010 mid=100010 pos=+2 cash=10000000
+  BUY below mid to profit. SELL above mid to profit. HOLD only if no edge.
+  BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD
+  Reply with ONLY one action line.
+
+Strict Constraints & Fallback (unchanged from V1)
+--------------------------------------------------
+1. Strict Regex Parsing: The agent uses a regex (BUY|SELL|HOLD)(?:\s+(\d+)\s+(\d+))?
+   to parse the output. This is unchanged so that the parse metric is fully comparable.
+2. Separate Error Counters: Parse failures (format errors) and Network errors
+   (API/timeout failures) are tracked in separate counters for clean metrics.
+3. No-Retry Fallback: Any parse failure defaults to HOLD.

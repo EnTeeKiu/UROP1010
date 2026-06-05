@@ -229,9 +229,26 @@ def main():
     # ──────────────────────────────────────────────────────────────
     fig, axes = plt.subplots(3, 1, figsize=(14, 12), sharex=False)
     
-    exp_num = "2" if "exp2" in log_dir else "1"
-    title_text = 'Experiment 2: LLM Market Baseline Reproduction' if exp_num == "2" else 'Experiment 1: Baseline Market Reproduction'
-    fig.suptitle(title_text, fontsize=16, fontweight='bold')
+    if "exp3_minimal_v2" in log_dir:
+        exp_name = "Experiment 3: Minimal V2"
+        img_name_prefix = "exp3_minimal_v2"
+    elif "exp3_minimal" in log_dir:
+        exp_name = "Experiment 3: Minimal Baseline"
+        img_name_prefix = "exp3_minimal"
+    elif "exp3_reasoning" in log_dir:
+        exp_name = "Experiment 3: Reasoning Baseline"
+        img_name_prefix = "exp3_reasoning"
+    elif "exp3_structured" in log_dir:
+        exp_name = "Experiment 3: Structured Baseline"
+        img_name_prefix = "exp3_structured"
+    elif "exp2" in log_dir:
+        exp_name = "Experiment 2: LLM Market Baseline Reproduction"
+        img_name_prefix = "exp2_llm_baseline"
+    else:
+        exp_name = "Experiment 1: Baseline Market Reproduction"
+        img_name_prefix = "exp1_baseline"
+        
+    fig.suptitle(exp_name, fontsize=16, fontweight='bold')
 
     has_plot = False
 
@@ -306,7 +323,7 @@ def main():
     plt.tight_layout()
 
     # Save figure
-    img_name = 'exp2_llm_baseline_analysis.png' if "exp2" in log_dir else 'exp1_baseline_analysis.png'
+    img_name = f"{img_name_prefix}_analysis.png"
     output_file = os.path.join(log_dir, img_name)
     plt.savefig(output_file, dpi=150, bbox_inches='tight')
     print("Analysis figure saved to: {}".format(output_file))

@@ -1,0 +1,43 @@
+Experiment 3: Minimal LLM Trading Agent Baseline
+==================================================
+
+Overview
+--------
+This experiment evaluates the performance, latency, and reliability of an LLM trading agent when operating under the absolute "minimal" conditions. The goal is to establish a baseline for how well the LLM can trade without generating complex "Chain-of-Thought" reasoning or handling verbose JSON structures. 
+
+This specific test (the Minimal Case) isolates the effect of prompt length and formatting constraints by providing the LLM with the most terse prompt possible and forcing it to output a single, strictly formatted action line.
+
+Experiment Configuration
+------------------------
+- Market Model: Continuous Double Auction (CDA)
+- Total Agents: 10
+  - 1 Exchange Agent (Order Book matching)
+  - 3 Zero Intelligence (ZIC) Agents (Randomized limit orders)
+  - 3 Heuristic Belief Learning Agents (Adaptive ZIP-like learning)
+  - 2 Value Agents (Provide liquidity based on fundamental value)
+  - 1 Momentum Agent (Trend following)
+  - 1 Minimal LLM Agent (Using Ollama / gemma3:4b)
+- Duration: 2 Hours (09:30 - 11:30)
+
+The Minimal Prompt Structure
+----------------------------
+Each time the LLM Agent wakes up (every 60 seconds), it constructs the following prompt using the current market state:
+
+    You are a trader. Maximize profit.
+    bid=100000 (500) ask=100020 (300) last=100010  pos=+2 cash=100000
+    BUY <price> <qty> | SELL <price> <qty> | HOLD
+    Reply with ONLY one action line.
+
+Variable Breakdown:
+- bid/ask: The current best bid and ask prices in the market (in cents).
+- bid_sz/ask_sz: The volume available at the best bid and ask.
+- last: The price of the most recent trade.
+- pos: The agent's current position (e.g., +2 means holding 200 shares long).
+- cash: The agent's available cash (in cents).
+
+Strict Constraints & Fallback
+-----------------------------
+To ensure this is truly a "minimal" test, the LLM API is constrained by:
+1. max_tokens = 24: This forces the LLM to output only the requested action line and prevents it from wasting latency generating unrequested text.
+2. Strict Regex Parsing: The agent uses a regex `(BUY|SELL|HOLD)(?:\s+(\d+)\s+(\d+))?` to parse the output.
+3. No-Retry Fallback: If the LLM generates any output that does not perfectly match the required format, the agent registers a "Parse Failure", defaults to a HOLD action (does nothing), and logs the failure. This allows us to quantify the exact reliability of this prompting method.
