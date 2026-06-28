@@ -9,21 +9,37 @@ except ImportError:
     import requests
 
 # ============================================================
-# MinimalAgentV2 — Exp 3 Minimal Prompt, Version 2
+# MinimalAgentRaw — Exp 3 Minimal-Raw Arm
 # ============================================================
-# Changes vs. MinimalAgent (V1):
-#   1. HOLD reframing: HOLD is presented as zero-profit fallback.
-#   2. Mid-price signal: mid=(bid+ask)//2 added to prompt context.
-#   4. max_tokens raised: 24 → 32, giving the model safe output room.
-#   5. Temperature raised: 0.1 → 0.4, increasing trading activity.
+# Design intent (per experimental design):
+#   This is the TRUE minimal baseline. It receives only raw
+#   market state (bid, ask, last, mid) with ZERO strategy
+#   guidance. "mid" is included purely as an information field
+#   — the model is NOT told what to do with it.
+#
+#   The expected result is high HOLD rate. This is a FINDING,
+#   not a bug: it establishes that a 4B model cannot extract
+#   tradeable edge from bare book state alone.
+#
+# Key logging additions vs MinimalAgent:
+#   - hold_reason: "deliberate" vs "fallback" per decision
+#   - raw_output: logged for inspection
+#   - hold_deliberate_count / hold_fallback_count at kernel stop
+#
+# Parameters vs MinimalAgent (V1):
+#   - max_tokens: 24 (unchanged)
+#   - temperature: 0.1 (unchanged)
+#   - prompt: adds mid= field, removes strategy heuristic line
 # ============================================================
 
-class MinimalAgentV2(TradingAgent):
+
+class MinimalAgentRaw(TradingAgent):
     def __init__(self, id, name, type, symbol='IBM', starting_cash=100000,
                  wake_up_freq='60s', q_max=10, log_orders=False, random_state=None,
                  ollama_url='http://localhost:11434/v1', model_name='gemma3:4b'):
 
-        super().__init__(id, name, type, starting_cash=starting_cash, log_orders=log_orders, random_state=random_state)
+        super().__init__(id, name, type, starting_cash=starting_cash,
+                         log_orders=log_orders, random_state=random_state)
 
         self.symbol = symbol
         self.wake_up_freq = wake_up_freq
@@ -43,9 +59,14 @@ class MinimalAgentV2(TradingAgent):
         except NameError:
             self.use_openai = False
 
-        self.parse_failures = 0     # LLM output did not match required format
-        self.network_errors = 0      # API/network failures (separate from format failures)
+        # Decision counters
         self.total_decisions = 0
+        self.parse_failures = 0       # LLM output did not match format
+        self.network_errors = 0       # API/network failures
+
+        # HOLD classification (key diagnostic)
+        self.hold_deliberate_count = 0  # Model explicitly emitted HOLD
+        self.hold_fallback_count = 0    # Parse failed → defaulted to HOLD
 
     def kernelStarting(self, startTime):
         super().kernelStarting(startTime)
@@ -59,14 +80,20 @@ class MinimalAgentV2(TradingAgent):
         surplus = cash - self.starting_cash + (H * 100 * final_price)
 
         self.logEvent('FINAL_VALUATION', surplus, True)
-        self.logEvent('PARSE_FAILURES', f"{self.parse_failures}/{self.total_decisions}", True)
-        self.logEvent('NETWORK_ERRORS', f"{self.network_errors}/{self.total_decisions}", True)
+        self.logEvent('PARSE_FAILURES',  f"{self.parse_failures}/{self.total_decisions}", True)
+        self.logEvent('NETWORK_ERRORS',  f"{self.network_errors}/{self.total_decisions}", True)
+        self.logEvent('HOLD_DELIBERATE', f"{self.hold_deliberate_count}/{self.total_decisions}", True)
+        self.logEvent('HOLD_FALLBACK',   f"{self.hold_fallback_count}/{self.total_decisions}", True)
 
         log_print("{} final report. Holdings {}, end cash {}, start cash {}, final price {}, surplus {}",
                   self.name, H, cash, self.starting_cash, final_price, surplus)
         log_print("{} Parse Failures: {}/{} | Network Errors: {}/{}",
                   self.name, self.parse_failures, self.total_decisions,
                   self.network_errors, self.total_decisions)
+        log_print("{} HOLD breakdown — deliberate: {}/{} | fallback: {}/{}",
+                  self.name,
+                  self.hold_deliberate_count, self.total_decisions,
+                  self.hold_fallback_count,   self.total_decisions)
 
     def wakeup(self, currentTime):
         super().wakeup(currentTime)
@@ -86,7 +113,6 @@ class MinimalAgentV2(TradingAgent):
         self.setWakeup(currentTime + delta_time)
 
         self.cancelOrders()
-
         self.getCurrentSpread(self.symbol)
         self.state = 'AWAITING_SPREAD'
 
@@ -94,12 +120,14 @@ class MinimalAgentV2(TradingAgent):
         super().receiveMessage(currentTime, msg)
 
         if self.state == 'AWAITING_SPREAD' and msg.body['msg'] == 'QUERY_SPREAD':
-            if self.mkt_closed: return
+            if self.mkt_closed:
+                return
             self.make_llm_decision()
             self.state = 'AWAITING_WAKEUP'
 
     def cancelOrders(self):
-        if not self.orders: return False
+        if not self.orders:
+            return False
         for id, order in self.orders.items():
             self.cancelOrder(order)
         return True
@@ -120,15 +148,13 @@ class MinimalAgentV2(TradingAgent):
         pos = int(self.getHoldings(self.symbol) / 100)
         cash = self.holdings['CASH']
 
-        # Change 2 & 5: Compute mid-price as a fair value proxy
+        # mid is provided as raw information only — no guidance on how to use it
         mid = (bid + ask) // 2 if (bid and ask) else last
 
-        # Change 1: Reframe prompt — HOLD is the zero-profit fallback
-        # Change 2: Add mid= to give the LLM a price anchor
-        prompt = f"You are a trader. Maximize profit.\n"
+        # Minimal-Raw prompt: state fields only, ZERO strategy heuristic
+        prompt  = f"You are a trader. Maximize profit.\n"
         prompt += f"All prices are in cents (e.g. 100000 = $1000.00).\n"
         prompt += f"bid={bid} ({bid_sz}) ask={ask} ({ask_sz}) last={last} mid={mid} pos={pos:+d} cash={cash}\n"
-        prompt += f"BUY below mid to profit. SELL above mid to profit. HOLD only if no edge.\n"
         prompt += f"BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD\n"
         prompt += f"Reply with ONLY one action line."
 
@@ -144,30 +170,23 @@ class MinimalAgentV2(TradingAgent):
         qty = 0
         price = 0
 
-        # --- Step 1: Call the LLM API (network errors tracked separately) ---
+        # --- Step 1: Network call (network errors tracked separately) ---
         try:
             if self.use_openai:
                 response = self.client.chat.completions.create(
                     model=self.model_name,
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=32,      # Change 4: raised from 24 → 32
-                    temperature=0.4     # Change 5: raised from 0.1 → 0.4
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=24,
+                    temperature=0.1
                 )
                 decision_text = response.choices[0].message.content.strip()
             else:
                 import requests
                 payload = {
                     "model": self.model_name,
-                    "messages": [
-                        {"role": "user", "content": prompt}
-                    ],
+                    "messages": [{"role": "user", "content": prompt}],
                     "stream": False,
-                    "options": {
-                        "temperature": 0.4,     # Change 5
-                        "num_predict": 32       # Change 4
-                    }
+                    "options": {"temperature": 0.1, "num_predict": 24}
                 }
                 url = self.ollama_url.replace('/v1', '/api/chat')
                 res = requests.post(url, json=payload, timeout=30)
@@ -175,10 +194,13 @@ class MinimalAgentV2(TradingAgent):
                 decision_text = res.json()['message']['content'].strip()
         except Exception as e:
             self.network_errors += 1
+            self.hold_fallback_count += 1
             log_print("{} Network/API error: {}", self.name, str(e))
-            return  # Cannot proceed without an LLM response
+            return
 
-        # --- Step 2: Parse the response (format failures tracked separately) ---
+        log_print("{} raw LLM output: '{}'", self.name, decision_text)
+
+        # --- Step 2: Parse response (format failures tracked separately) ---
         try:
             match = re.search(r'(BUY|SELL|HOLD)(?:\s+(\d+)\s+(\d+))?', decision_text.upper())
             if match:
@@ -189,12 +211,16 @@ class MinimalAgentV2(TradingAgent):
                         qty = int(match.group(3))
                     else:
                         raise ValueError("Missing price/qty for BUY/SELL")
+                else:
+                    # Deliberate HOLD — model explicitly said HOLD
+                    self.hold_deliberate_count += 1
             else:
                 raise ValueError(f"Regex no match. Raw output: '{decision_text}'")
 
         except ValueError as e:
             self.parse_failures += 1
-            log_print("{} Parse failure: {}", self.name, str(e))
+            self.hold_fallback_count += 1
+            log_print("{} Parse failure (fallback→HOLD): {}", self.name, str(e))
             action = "HOLD"
             qty = 0
             price = 0
@@ -213,10 +239,12 @@ class MinimalAgentV2(TradingAgent):
         if action == "BUY":
             if current_holdings + qty > self.q_max:
                 qty = self.q_max - current_holdings
-                if qty <= 0: return
+                if qty <= 0:
+                    return
             self.placeLimitOrder(self.symbol, qty * 100, True, price)
         elif action == "SELL":
             if current_holdings - qty < -self.q_max:
                 qty = current_holdings + self.q_max
-                if qty <= 0: return
+                if qty <= 0:
+                    return
             self.placeLimitOrder(self.symbol, qty * 100, False, price)

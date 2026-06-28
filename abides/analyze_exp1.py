@@ -106,8 +106,14 @@ def extract_spreads_from_exchange_log(exchange_df):
 
     merged = bids.join(asks, how='outer')
     merged = merged.ffill().dropna()
+    merged.loc[merged['bid'] > merged['ask'], 'spread'] = np.nan
+    merged.loc[merged['bid'] > merged['ask'], 'midpoint'] = np.nan
     merged['spread'] = merged['ask'] - merged['bid']
     merged['midpoint'] = (merged['bid'] + merged['ask']) / 2.0
+    
+    num_nan = merged['spread'].isna().sum()
+    if num_nan > 0:
+        print(f"  Note: {num_nan} ticks removed due to crossed/one-sided book (bid > ask)")
 
     return merged['spread'], merged['midpoint'], merged
 
@@ -229,17 +235,32 @@ def main():
     # ──────────────────────────────────────────────────────────────
     fig, axes = plt.subplots(3, 1, figsize=(14, 12), sharex=False)
     
-    if "exp3_minimal_v2" in log_dir:
-        exp_name = "Experiment 3: Minimal V2"
+    if "exp3_minimal_raw" in log_dir:
+        exp_name = "Experiment 3: Minimal-Raw Arm"
+        img_name_prefix = "exp3_minimal_raw"
+    elif "exp3_minimal_v2" in log_dir:
+        exp_name = "Experiment 3: Minimal+Hint Arm (V2)"
         img_name_prefix = "exp3_minimal_v2"
     elif "exp3_minimal" in log_dir:
         exp_name = "Experiment 3: Minimal Baseline"
         img_name_prefix = "exp3_minimal"
+    elif "exp3_reasoning_r3" in log_dir:
+        exp_name = "Experiment 3: Reasoning R3 (Evidence-Grounding)"
+        img_name_prefix = "exp3_reasoning_r3"
+    elif "exp3_structured_json" in log_dir:
+        exp_name = "Experiment 3: Structured-JSON"
+        img_name_prefix = "exp3_structured_json"
+    elif "exp3_reasoning_r2" in log_dir:
+        exp_name = "Experiment 3: Reasoning R2 (Structured CoT)"
+        img_name_prefix = "exp3_reasoning_r2"
+    elif "exp3_reasoning_r1" in log_dir:
+        exp_name = "Experiment 3: Reasoning R1 (Open CoT)"
+        img_name_prefix = "exp3_reasoning_r1"
     elif "exp3_reasoning" in log_dir:
-        exp_name = "Experiment 3: Reasoning Baseline"
+        exp_name = "Experiment 3: Reasoning Arm"
         img_name_prefix = "exp3_reasoning"
     elif "exp3_structured" in log_dir:
-        exp_name = "Experiment 3: Structured Baseline"
+        exp_name = "Experiment 3: Structured-JSON Arm"
         img_name_prefix = "exp3_structured"
     elif "exp2" in log_dir:
         exp_name = "Experiment 2: LLM Market Baseline Reproduction"
@@ -345,6 +366,23 @@ def main():
             grouped = pnl_df.groupby('Strategy')['PnL_dollars'].agg(['mean', 'sum', 'count'])
             print("P&L BY STRATEGY:")
             print(grouped.to_string())
+            print()
+
+        # ── LLM Decision Quality Summary ──
+        events_to_track = [
+            'HOLD_DELIBERATE', 'HOLD_FALLBACK', 'PARSE_FAILURES', 'NETWORK_ERRORS',
+            'TOKENS_OUT_MEDIAN', 'TOKENS_OUT_MEAN', 'TOKENS_TRUNCATED',
+            'BINDING_RATE', 'BINDING_AMBIGUOUS',
+            'CONCLUSION_FROM_TAG', 'CONCLUSION_FROM_FALLBACK',
+            'JSON_MALFORMED', 'FENCE_STRIPPED', 'VERIFY_CITES_NUMBER', 'REASONING_CHARS_MEDIAN'
+        ]
+        llm_events = summary_df[summary_df['EventType'].isin(events_to_track)]
+        if not llm_events.empty:
+            print("=" * 60)
+            print("LLM DECISION QUALITY SUMMARY")
+            print("=" * 60)
+            for _, row in llm_events.iterrows():
+                print(f"  {row['AgentStrategy']} [{row['AgentID']}]  {row['EventType']}: {row['Event']}")
             print()
 
     print("=" * 60)

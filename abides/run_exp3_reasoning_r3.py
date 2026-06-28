@@ -4,24 +4,28 @@ import sys
 import os
 
 def main():
-    parser = argparse.ArgumentParser(description='Run Experiment 3: Minimal LLM Agent V2')
+    parser = argparse.ArgumentParser(description='Run Experiment 3: Reasoning R3 (Evidence-Grounding)')
     parser.add_argument('--seed', type=int, default=12345, help='Random seed')
     args = parser.parse_args()
 
     seed = args.seed
-    log_dir = f"exp3_minimal_v2_seed{seed}"
+    log_dir = f"exp3_reasoning_r3_seed{seed}"
 
     print("=" * 60)
-    print("Experiment 3: Minimal LLM Baseline — Version 2")
+    print("Experiment 3: Reasoning R3 — Structured + Evidence-Grounding")
     print("=" * 60)
     print(f"Seed: {seed}")
     print(f"Log directory: log/{log_dir}")
+    print()
+    print("Agent: ReasoningAgentR3")
+    print("  Scaffold: [EXPOSURE] / [EDGE] / [VERIFY] / [DECISION]")
+    print("  temp=0.1, max_tokens=256")
     print()
 
     print(">>> Step 1: Running ABIDES simulation...")
     sim_cmd = [
         sys.executable, "abides.py",
-        "-c", "exp3_minimal_v2",
+        "-c", "exp3_reasoning_r3",
         "-s", str(seed),
         "-l", log_dir
     ]
