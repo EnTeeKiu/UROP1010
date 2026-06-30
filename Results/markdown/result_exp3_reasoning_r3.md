@@ -1,4 +1,4 @@
-# Experiment 3: Reasoning R3 (Evidence-Grounding) — Results
+﻿# Experiment 3: Reasoning R3 (Evidence-Grounding) â€” Results
 
 ## Simulation Overview
 - **Agent Type**: `ReasoningAgentR3`
@@ -32,4 +32,5 @@
 5. **Direction Bias**: As seen in all previous runs, deliberate HOLD events remained at exactly 0. The model continues to execute a trade on every single query opportunity, meaning the improved PnL came entirely from making *better* trades, not *fewer* trades.
 
 ## Analysis Chart
-![R3 Analysis](exp3_reasoning_r3_analysis.png)
+![R3 Analysis](../images/exp3_reasoning_r3_analysis.png)
+

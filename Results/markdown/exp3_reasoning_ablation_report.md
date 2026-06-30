@@ -1,4 +1,4 @@
-# Experiment 3: Prompt-Level Reasoning Ablation
+﻿# Experiment 3: Prompt-Level Reasoning Ablation
 
 ## 1. Purpose
 
@@ -9,9 +9,9 @@ We ablate the prompt across four arms, each adding exactly one variable to the p
 | Arm | Scaffold | Variable Isolated |
 |:---|:---|:---|
 | **Minimal-Raw** | None (bare state + action grammar) | Baseline: can the model trade at all? |
-| **R1 — Open CoT** | "Think step by step" (free-form) | Does *any* reasoning help? |
-| **R2 — Structured CoT** | `[EXPOSURE]` / `[EDGE]` / `[DECISION]` | Does *guided structure* outperform free-form? |
-| **R3 — Evidence-Grounding** | R2 + `[VERIFY]` ("cite the number") | Does *citing state evidence* improve quality? |
+| **R1 â€” Open CoT** | "Think step by step" (free-form) | Does *any* reasoning help? |
+| **R2 â€” Structured CoT** | `[EXPOSURE]` / `[EDGE]` / `[DECISION]` | Does *guided structure* outperform free-form? |
+| **R3 â€” Evidence-Grounding** | R2 + `[VERIFY]` ("cite the number") | Does *citing state evidence* improve quality? |
 
 All non-prompt parameters are **frozen** across arms: model (`gemma3:4b`), temperature (0.1), market population (3 ZI, 3 HBL, 2 Value, 1 Momentum), seed (12345), wakeup frequency (60s), position limit (10 lots), and action grammar.
 
@@ -22,7 +22,7 @@ All non-prompt parameters are **frozen** across arms: model (`gemma3:4b`), tempe
 ### 2.1 Market Environment
 - **Simulator:** ABIDES (Agent-Based Interactive Discrete Event Simulation)
 - **Asset:** JPM (synthetic), fundamental value mean-reverting around $1,000
-- **Session:** 2 hours (09:30–11:30), seed 12345
+- **Session:** 2 hours (09:30â€“11:30), seed 12345
 - **Background agents:** 3 Zero-Intelligence, 3 Heuristic Belief Learning, 2 Value, 1 Momentum (9 total)
 - **LLM agent:** 1 per arm (agent ID 10)
 
@@ -30,7 +30,7 @@ All non-prompt parameters are **frozen** across arms: model (`gemma3:4b`), tempe
 - **Model:** `gemma3:4b` via local Ollama
 - **Temperature:** 0.1
 - **Max tokens:** 24 (Minimal-Raw) / 256 (R1, R2, R3)
-- **Wakeup cycle:** Every 60 seconds → 119 decision points per session
+- **Wakeup cycle:** Every 60 seconds â†’ 119 decision points per session
 - **Action grammar:** `BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD`
 
 ### 2.3 Prompt Designs
@@ -84,7 +84,7 @@ BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD
 
 ## 3. Results
 
-### 3.1 Full Population P&L — Minimal-Raw
+### 3.1 Full Population P&L â€” Minimal-Raw
 
 | Agent | Strategy | PnL ($) |
 |:---|:---|---:|
@@ -99,12 +99,12 @@ BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD
 | VALUE_AGENT_8 | Value Agent | -757.16 |
 | ZI_AGENT_3 | Zero Intelligence | -1,682.00 |
 
-> **LLM Rank: 6th of 10 (tied 4th–6th at $0.00)**
+> **LLM Rank: 6th of 10 (tied 4thâ€“6th at $0.00)**
 > Zero PnL because all 7 submitted orders were mispriced and never filled.
 
 ---
 
-### 3.2 Full Population P&L — Reasoning R1 (Open CoT)
+### 3.2 Full Population P&L â€” Reasoning R1 (Open CoT)
 
 | Agent | Strategy | PnL ($) |
 |:---|:---|---:|
@@ -124,7 +124,7 @@ BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD
 
 ---
 
-### 3.3 Full Population P&L — Reasoning R2 (Structured CoT)
+### 3.3 Full Population P&L â€” Reasoning R2 (Structured CoT)
 
 | Agent | Strategy | PnL ($) |
 |:---|:---|---:|
@@ -144,7 +144,7 @@ BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD
 
 ---
 
-### 3.4 Full Population P&L — Reasoning R3 (Evidence-Grounding)
+### 3.4 Full Population P&L â€” Reasoning R3 (Evidence-Grounding)
 
 | Agent | Strategy | PnL ($) |
 |:---|:---|---:|
@@ -164,7 +164,7 @@ BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD
 
 ---
 
-### 3.5 Full Population P&L — Structured JSON (R3 equivalent)
+### 3.5 Full Population P&L â€” Structured JSON (R3 equivalent)
 
 | Agent | Strategy | PnL ($) |
 |:---|:---|---:|
@@ -184,7 +184,7 @@ BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD
 
 ---
 
-### 3.6 Cross-Arm Comparison — LLM Agent Only
+### 3.6 Cross-Arm Comparison â€” LLM Agent Only
 
 | Metric | Minimal-Raw | R1 (Open CoT) | R2 (Structured) | R3 (Evidence) | JSON (R3 Envelope) |
 |:---|:---:|:---:|:---:|:---:|:---:|
@@ -195,17 +195,17 @@ BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD
 | **PnL** | **$0.00** | **-$5,362.67** | **+$148.05** | **+$793.92** | **-$889.34** |
 | **Rank (of 10)** | 6th | 10th | 3rd | 2nd | 9th |
 
-### 3.7 Cross-Arm Comparison — Market-Level Statistics
+### 3.7 Cross-Arm Comparison â€” Market-Level Statistics
 
 | Metric | Minimal-Raw | R1 (Open CoT) | R2 (Structured) | R3 (Evidence) |
 |:---|:---:|:---:|:---:|:---:|
 | Mean spread | $5.22 | $7.63 | $6.44 | $3.32 |
 | Median spread | $2.26 | $2.07 | $2.26 | $1.86 |
-| Spread std | — | $11.83 | $7.56 | $6.14 |
+| Spread std | â€” | $11.83 | $7.56 | $6.14 |
 | Total volume | 670 | 1,080 | 726 | 796 |
 | Executions | 26 | 62 | 34 | 42 |
 | Mean mid-price | $1,003.37 | $1,001.79 | $1,004.33 | $1,004.41 |
-| Mid-price std | — | $9.51 | $8.73 | $8.44 |
+| Mid-price std | â€” | $9.51 | $8.73 | $8.44 |
 
 ---
 
@@ -213,7 +213,7 @@ BUY <price_cents> <qty> | SELL <price_cents> <qty> | HOLD
 
 ### 4.1 Format Compliance: Structure Prevents Grammar Dropping
 
-The most immediate finding is that **unstructured CoT degrades output compliance**. R1's bare "think step by step" instruction introduced 19/119 parse failures — the model's free-form reasoning bleeds into its action line, producing unparseable outputs. This is a 16% failure rate on a task the Minimal-Raw arm achieved 0% failure on.
+The most immediate finding is that **unstructured CoT degrades output compliance**. R1's bare "think step by step" instruction introduced 19/119 parse failures â€” the model's free-form reasoning bleeds into its action line, producing unparseable outputs. This is a 16% failure rate on a task the Minimal-Raw arm achieved 0% failure on.
 
 Both R2 and R3 restore perfect compliance (0/119). The mechanism: by forcing reasoning into explicit `[TAG]` sections, the structured scaffold creates a clean boundary between the thinking and the action. The model consistently places `BUY/SELL/HOLD` on its final line when it has a `[DECISION]` tag to "close" its reasoning.
 
@@ -228,19 +228,19 @@ The difference between arms is not in deliberate holding but in *fallback* holdi
 
 ### 4.3 Binding Rate: Structured Reasoning is Coherent
 
-The binding-rate metric measures whether the model's stated reasoning conclusion matches its final action. For R1 (last-sentence extraction), the rate is 92% — high but imperfect, partly because the unstructured text makes extraction noisier. For R2 and R3 (tag-based extraction), binding is 100%. This indicates that when the model uses structured tags, its reasoning process and final action are perfectly coherent — it is not generating reasoning in one direction and acting in another.
+The binding-rate metric measures whether the model's stated reasoning conclusion matches its final action. For R1 (last-sentence extraction), the rate is 92% â€” high but imperfect, partly because the unstructured text makes extraction noisier. For R2 and R3 (tag-based extraction), binding is 100%. This indicates that when the model uses structured tags, its reasoning process and final action are perfectly coherent â€” it is not generating reasoning in one direction and acting in another.
 
 ### 4.4 Financial Performance: Evidence-Grounding is the Key Lever
 
 The PnL trajectory across arms tells a clear story:
 
 ```
-Minimal-Raw ($0.00)  →  R1 (-$5,363)  →  R2 (+$148)  →  R3 (+$794)
+Minimal-Raw ($0.00)  â†’  R1 (-$5,363)  â†’  R2 (+$148)  â†’  R3 (+$794)
 ```
 
-- **Raw → R1 (regression):** Adding unstructured reasoning *without* structure made the model *worse*. It traded more aggressively but with degraded price calibration, accumulating a massive losing position.
-- **R1 → R2 (+$5,511 improvement):** Structure restored compliance and produced marginally profitable trading. The tags did not change *what* the model knows — they changed how reliably it *applies* what it knows.
-- **R2 → R3 (+$646 improvement):** The `[VERIFY]` step — "cite the specific number that confirms your direction and price" — produced a further 5× PnL improvement over R2. Forcing the model to ground its decision in an actual state value appears to reduce hallucinated entries and improve price targeting.
+- **Raw â†’ R1 (regression):** Adding unstructured reasoning *without* structure made the model *worse*. It traded more aggressively but with degraded price calibration, accumulating a massive losing position.
+- **R1 â†’ R2 (+$5,511 improvement):** Structure restored compliance and produced marginally profitable trading. The tags did not change *what* the model knows â€” they changed how reliably it *applies* what it knows.
+- **R2 â†’ R3 (+$646 improvement):** The `[VERIFY]` step â€” "cite the specific number that confirms your direction and price" â€” produced a further 5Ã— PnL improvement over R2. Forcing the model to ground its decision in an actual state value appears to reduce hallucinated entries and improve price targeting.
 
 ### 4.5 Market Impact
 
@@ -254,7 +254,7 @@ Two instances of apparent negative spread were identified in the R1 run (at 10:2
 
 ## 5. Limitations
 
-1. **Single seed.** All results are from seed 12345. The direction and magnitude of effects must be confirmed across ≥10 seeds before publication. The PnL ranking could be path-specific.
+1. **Single seed.** All results are from seed 12345. The direction and magnitude of effects must be confirmed across â‰¥10 seeds before publication. The PnL ranking could be path-specific.
 2. **No deliberate HOLD baseline.** Because the model never voluntarily holds, we cannot compare "choosing to hold" across arms. This is itself a finding (the model treats every wakeup as a mandate to act), but it limits our ability to measure reasoning-induced restraint.
 3. **Token budget is not a confound (verified).** The 256-token cap was never reached in any arm (max median: 122 in R3). The `TOKENS_TRUNCATED` column is 0/119 across all three reasoning arms.
 4. **Market population is small.** 10 agents total. Results may differ with denser or more adversarial markets.
@@ -265,10 +265,11 @@ Two instances of apparent negative spread were identified in the R1 run (at 10:2
 
 1. **Unstructured CoT is harmful for small models.** For a 4B-parameter model, "think step by step" without structural guidance *degrades* output compliance (16% parse failure rate) and *worsens* financial performance (last place among all agents). The free-form reasoning bleeds into the action grammar.
 
-2. **Structured tags are necessary and sufficient for compliance.** The `[TAG]` scaffold (R2) restores 100% parse success, 100% binding coherence, and moves the model from catastrophic loss to marginal profit. Structure does not add information — it organizes the model's existing knowledge into a format that preserves action-grammar integrity.
+2. **Structured tags are necessary and sufficient for compliance.** The `[TAG]` scaffold (R2) restores 100% parse success, 100% binding coherence, and moves the model from catastrophic loss to marginal profit. Structure does not add information â€” it organizes the model's existing knowledge into a format that preserves action-grammar integrity.
 
-3. **Evidence-grounding is the primary lever for decision quality.** Adding `[VERIFY]` — a single instruction to cite the specific state number supporting the chosen direction — produced a 5× PnL improvement over R2. This suggests that small models benefit most not from *more thinking* but from *anchored thinking*: being forced to ground decisions in concrete data rather than plausible-sounding generalities.
+3. **Evidence-grounding is the primary lever for decision quality.** Adding `[VERIFY]` â€” a single instruction to cite the specific state number supporting the chosen direction â€” produced a 5Ã— PnL improvement over R2. This suggests that small models benefit most not from *more thinking* but from *anchored thinking*: being forced to ground decisions in concrete data rather than plausible-sounding generalities.
 
 4. **JSON Enforcement Degrades Reasoning (The Tam et al. Effect).** When the exact same reasoning logic as R3 was placed inside a strict JSON object envelope, parse reliability remained perfect (0/119 failures), but **reasoning quality collapsed**. The JSON agent cited state variables in its `verify` string only 1.7% of the time (2/119), compared to plain text R3. Consequently, the JSON agent's PnL fell to -$889 (9th place), corroborating the hypothesis that forcing a small LLM to generate complex syntactic envelopes (JSON keys, quotes, brackets) consumes the cognitive overhead otherwise used for logical reasoning and state-variable grounding.
 
 5. **The "always trade" bias is deep and scaffold-invariant.** No prompt design in this experiment induced the model to voluntarily hold. This finding constrains the design space for Exp 4 (memory ablation): any memory-based improvement will manifest as *better trades*, not *fewer trades*, unless an explicit hold-inducing mechanism is added.
+

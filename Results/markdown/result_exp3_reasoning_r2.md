@@ -1,4 +1,4 @@
-# Experiment 3: Reasoning R2 (Structured 3-Check CoT) — Results
+﻿# Experiment 3: Reasoning R2 (Structured 3-Check CoT) â€” Results
 
 ## Simulation Overview
 - **Agent Type**: `ReasoningAgentR2`
@@ -31,4 +31,5 @@
 4. **Direction Bias Persists**: Despite the better execution and structure, the model still never output a deliberate `HOLD`. It traded on all 119 queries.
 
 ## Analysis Chart
-![R2 Analysis](exp3_reasoning_r2_analysis.png)
+![R2 Analysis](../images/exp3_reasoning_r2_analysis.png)
+

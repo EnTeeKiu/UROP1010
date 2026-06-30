@@ -14,7 +14,7 @@ All runs use seed 12345, `gemma3:4b`, temperature 0.1, one LLM trader, and the s
 
 PnL is computed from ABIDES' `ENDING_CASH` mark-to-market value. The custom `FINAL_VALUATION` event is not used in this report.
 
-![Full PnL Comparison](exp4_full_pnl_comparison.png)
+![Full PnL Comparison](../images/exp4_full_pnl_comparison.png)
 
 ## 2. Market Dynamics
 
@@ -22,17 +22,17 @@ The plots below follow the same three-panel format used for Experiments 1-3: bid
 
 ### 2.1 Decision Only
 
-![Decision-only market dynamics](exp4_rerun_decision_only_analysis.png)
+![Decision-only market dynamics](../images/exp4_rerun_decision_only_analysis.png)
 
 ### 2.2 Reasoning JSON
 
-![Reasoning market dynamics](exp4_reasoning_json_analysis.png)
+![Reasoning market dynamics](../images/exp4_reasoning_json_analysis.png)
 
 ### 2.3 Decisions + Fills
 
-![Decisions and fills market dynamics](exp4_decisions_fills_analysis.png)
+![Decisions and fills market dynamics](../images/exp4_decisions_fills_analysis.png)
 
-![Market comparison](exp4_full_market_comparison.png)
+![Market comparison](../images/exp4_full_market_comparison.png)
 
 ## 3. Cross-Run Metrics
 

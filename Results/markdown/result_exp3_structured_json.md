@@ -1,4 +1,4 @@
-# Experiment 3: Structured JSON (R3 Equivalent) — Results
+﻿# Experiment 3: Structured JSON (R3 Equivalent) â€” Results
 
 ## Simulation Overview
 - **Agent Type**: `StructuredJsonAgent`
@@ -28,4 +28,5 @@
 4. **Direction Bias**: As seen in all previous runs, deliberate HOLD events remained at exactly 0. 
 
 ## Analysis Chart
-![JSON Analysis](file:///C:/Users/ADMIN/OneDrive/Documents/VIN%20UNIVERSITY/UROP/UROP%20-%20Research/UROP1010/abides/log/exp3_structured_json_seed12345/exp3_structured_json_analysis.png)
+_Standalone structured-JSON chart file was not available in the repository; the structured-JSON result is summarized in the aggregate Experiment 3 report._
+

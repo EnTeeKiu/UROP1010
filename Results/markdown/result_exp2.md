@@ -1,4 +1,4 @@
-# Experiment 2: LLM Market Baseline Results
+﻿# Experiment 2: LLM Market Baseline Results
 
 We successfully integrated a local **Gemma 3 4B** model into the ABIDES simulator, fulfilling the core objective of building an API bridge between the continuous double auction and an LLM decision-maker.
 
@@ -20,7 +20,7 @@ The simulation ran successfully on the RTX 3050 Ti (4GB VRAM) in approximately 1
 
 Below is the generated plot demonstrating the market dynamics during the 2-hour session:
 
-![Experiment 2 Analysis Plot](./exp2_llm_baseline_analysis.png)
+![Experiment 2 Analysis Plot](../images/exp2_llm_baseline_analysis.png)
 
 > [!WARNING] 
 > The presence of just a single LLM agent caused massive disruptions to market stability compared to Experiment 1. The spread widened dramatically, and trading volume exploded.
@@ -64,3 +64,4 @@ The immediate next step for the research project is to implement cognitive archi
 1. **Prompt Engineering / Chain of Thought (CoT)**: Forcing the LLM to write out its mathematical reasoning about the spread before outputting its JSON decision.
 2. **Enhanced Memory**: Giving the LLM a better history of the price trajectory rather than just its own past actions.
 3. **Information Ablation**: Obscuring parts of the order book to see if the LLM is suffering from "information overload" with the top-5 levels.
+

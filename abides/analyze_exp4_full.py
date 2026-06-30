@@ -347,7 +347,7 @@ All runs use seed 12345, `gemma3:4b`, temperature 0.1, one LLM trader, and the s
 
 PnL is computed from ABIDES' `ENDING_CASH` mark-to-market value. The custom `FINAL_VALUATION` event is not used in this report.
 
-![Full PnL Comparison](exp4_full_pnl_comparison.png)
+![Full PnL Comparison](../images/exp4_full_pnl_comparison.png)
 
 ## 2. Market Dynamics
 
@@ -355,17 +355,17 @@ The plots below follow the same three-panel format used for Experiments 1-3: bid
 
 ### 2.1 Decision Only
 
-![Decision-only market dynamics](exp4_rerun_decision_only_analysis.png)
+![Decision-only market dynamics](../images/exp4_rerun_decision_only_analysis.png)
 
 ### 2.2 Reasoning JSON
 
-![Reasoning market dynamics](exp4_reasoning_json_analysis.png)
+![Reasoning market dynamics](../images/exp4_reasoning_json_analysis.png)
 
 ### 2.3 Decisions + Fills
 
-![Decisions and fills market dynamics](exp4_decisions_fills_analysis.png)
+![Decisions and fills market dynamics](../images/exp4_decisions_fills_analysis.png)
 
-![Market comparison](exp4_full_market_comparison.png)
+![Market comparison](../images/exp4_full_market_comparison.png)
 
 ## 3. Cross-Run Metrics
 
@@ -414,10 +414,15 @@ The market plots show that tighter spreads or higher volume do not guarantee bet
 def main():
     root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     results_dir = os.path.join(root, "Results")
-    os.makedirs(results_dir, exist_ok=True)
+    markdown_dir = os.path.join(results_dir, "markdown")
+    images_dir = os.path.join(results_dir, "images")
+    data_dir = os.path.join(results_dir, "data")
+    os.makedirs(markdown_dir, exist_ok=True)
+    os.makedirs(images_dir, exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True)
 
     metrics = collect(root)
-    metrics.to_csv(os.path.join(results_dir, "exp4_full_metrics.csv"), index=False)
+    metrics.to_csv(os.path.join(data_dir, "exp4_full_metrics.csv"), index=False)
 
     for group_key, group_label, _pattern in RUN_GROUPS:
         if group_key in set(metrics["group"]):
@@ -431,14 +436,14 @@ def main():
                 metrics,
                 group_key,
                 group_label,
-                os.path.join(results_dir, filename_map[group_key]),
+                os.path.join(images_dir, filename_map[group_key]),
             )
 
-    save_comparison_plots(metrics, results_dir)
-    write_report(metrics, results_dir)
+    save_comparison_plots(metrics, images_dir)
+    write_report(metrics, markdown_dir)
 
     print(metrics.sort_values(["group", "arm"]).to_string(index=False))
-    print("Wrote Results/exp4_full_result_report.md")
+    print("Wrote Results/markdown/exp4_full_result_report.md")
 
 
 if __name__ == "__main__":

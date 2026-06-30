@@ -1,4 +1,4 @@
-# Experiment 1: Baseline Market Reproduction Results
+﻿# Experiment 1: Baseline Market Reproduction Results
 
 I have successfully resolved the compatibility issues and completed the execution of **Experiment 1** as outlined in your research proposal. This establishes a functioning baseline using traditional trading agents in a simulated continuous double auction, confirming that the ABIDES simulator, matching logic, and logging pipeline are working correctly.
 
@@ -18,7 +18,7 @@ I have successfully resolved the compatibility issues and completed the executio
 
 The simulation ran successfully with seed `12345` and generated the following plot demonstrating a healthy baseline market:
 
-![Experiment 1 Analysis Plot](./exp1_baseline_analysis.png)
+![Experiment 1 Analysis Plot](../images/exp1_baseline_analysis.png)
 
 > [!NOTE] 
 > The metrics show that the market is stable and behaving as expected for a baseline continuous double auction.
@@ -56,3 +56,4 @@ This matches established microstructure literature where ZIC traders systematica
 ## Next Steps
 
 Now that the baseline is functioning and stable on modern Python, we are ready to move on to incorporating your local LLM (Gemma 3) into the environment. Are you ready to begin designing the API bridge between ABIDES and Ollama?
+

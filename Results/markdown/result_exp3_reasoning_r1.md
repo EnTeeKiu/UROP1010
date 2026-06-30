@@ -1,4 +1,4 @@
-# Experiment 3: Reasoning R1 (Open CoT) — Results
+﻿# Experiment 3: Reasoning R1 (Open CoT) â€” Results
 
 ## Simulation Overview
 - **Agent Type**: `ReasoningAgentR1`
@@ -31,4 +31,5 @@
 4. **Conclusion Fallback**: Because there are no scaffold tags, the conclusion text was always extracted from the last sentence (100/119). The 92% binding rate shows our classification mechanism works well for unstructured text, but the unstructured format itself degrades strict output compliance.
 
 ## Analysis Chart
-![R1 Analysis](exp3_reasoning_r1_analysis.png)
+![R1 Analysis](../images/exp3_reasoning_r1_analysis.png)
+
