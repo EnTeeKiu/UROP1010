@@ -281,11 +281,14 @@ def main():
             spread_dollars = spread / 100.0
             spread_dollars.plot(ax=axes[0], color='steelblue', linewidth=0.5, alpha=0.7)
             # Add rolling mean
-            rolling_spread = spread_dollars.rolling(window=min(100, len(spread_dollars))).mean()
+            rolling_spread = spread_dollars.rolling(
+                window=min(20, len(spread_dollars)),
+                min_periods=1,
+            ).mean()
             rolling_spread.plot(ax=axes[0], color='darkred', linewidth=2, label='Rolling Mean')
             axes[0].set_title('Bid-Ask Spread Over Time')
             axes[0].set_ylabel('Spread ($)')
-            axes[0].legend(['Raw Spread', 'Rolling Mean (100)'])
+            axes[0].legend(['Raw Spread', 'Rolling Mean (20)'])
             axes[0].grid(True, alpha=0.3)
             has_plot = True
 

@@ -220,7 +220,7 @@ def save_group_market_plot(root, metrics, group_key, group_label, output):
         fund_path = os.path.join(log_dir, "fundamental_JPM.bz2")
         fund = pd.read_pickle(fund_path, compression="bz2") if os.path.exists(fund_path) else None
         spread, volume, mid, fundamental = market_series(exchange, fund)
-        spread.rolling(window=min(100, len(spread))).mean().plot(
+        spread.rolling(window=min(20, len(spread)), min_periods=1).mean().plot(
             ax=axes[0], color=color, linewidth=1.8, label=row["arm_label"]
         )
         volume.plot(ax=axes[1], color=color, linewidth=1.8, label=row["arm_label"])
