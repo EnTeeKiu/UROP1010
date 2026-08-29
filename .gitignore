@@ -1,0 +1,6 @@
+abides/output/
+__pycache__/
+*.pyc
+*.bz2
+.idea/
+.vscode/

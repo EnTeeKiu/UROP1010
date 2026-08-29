@@ -1,0 +1,44 @@
+experiment:
+  name: llm_policy_effect_v1
+  simulator: ABIDES
+  session:
+    open: "09:30:00"
+    close: "16:00:00"
+    warmup_min: 30
+  ticks:
+    tick_size: 0.01
+    lot_size: 100
+
+market:
+  symbol: JPM
+  starting_cash: 10000000  # 100,000 dollars in cents
+  fundamental:
+    r_bar: 100000         # 1,000 dollars in cents
+    kappa: 1.67e-12
+    agent_kappa: 1.67e-15
+    sigma_s: 0
+    fund_vol: 1e-8
+    megashock_lambda_a: 2.77778e-13
+    megashock_mean: 1e3
+    megashock_var: 5e4
+
+treatment_agent:
+  wrapper:
+    cancel_all_on_wake: true
+    order_type: limit
+    size: 100
+    placement: at_touch
+    forced_action: true
+    q_max: 10             # maximum position in lots (100 shares each)
+  coin:
+    p_buy: 0.5
+  llm:
+    model: gemma3:4b
+    server_url: http://localhost:11434/v1
+    temperature: 0.0
+    max_tokens: 200
+
+seeds:
+  technical_pilot: [1001, 1002, 1003]
+  final_start: 2001
+  final_count: 30

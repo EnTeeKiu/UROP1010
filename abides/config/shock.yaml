@@ -1,0 +1,6 @@
+shock:
+  type: fundamental_jump
+  time: "12:30:00"
+  magnitude_sigma: 8
+  direction: up
+  event_window_min: 30
