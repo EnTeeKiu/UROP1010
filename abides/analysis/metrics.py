@@ -43,7 +43,9 @@ def time_weighted_mean(
         raise ValueError("an observation at or before start is required")
 
     interior = frame[(frame["time"] > start_ts) & (frame["time"] < end_ts)]
-    window = pd.concat([prior.assign(time=start_ts), interior], ignore_index=True)
+    prior_aligned = prior.copy()
+    prior_aligned["time"] = [start_ts]
+    window = pd.concat([prior_aligned, interior], ignore_index=True)
     next_times = window["time"].shift(-1)
     next_times.iloc[-1] = end_ts
     durations_ns = (next_times - window["time"]).dt.total_seconds().to_numpy()

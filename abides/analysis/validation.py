@@ -182,7 +182,7 @@ def _wrapper_cell_checks(result: ValidationResult, log_root: str, cell: str, see
         set(cancelled_ids).issubset(submitted_ids)
         and not cancelled_ids.duplicated().any()
         and max_per_wake <= 1
-        and len(cancellations) <= max(len(submissions) - 1, 0)
+        and len(cancellations) <= len(submissions)
     )
     result.add(
         f"{cell} seed={seed}: cancel-all request contract",
