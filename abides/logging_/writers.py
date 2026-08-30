@@ -5,7 +5,9 @@ import pandas as pd
 import numpy as np
 
 from logging_.schema import (
-    DECISIONS_SCHEMA, ORDERS_SCHEMA, TRADES_SCHEMA, BOOK_L1_SCHEMA, FUNDAMENTAL_SCHEMA, enforce_schema
+    DECISIONS_SCHEMA, ORDERS_SCHEMA, TRADES_SCHEMA, BOOK_L1_SCHEMA,
+    FUNDAMENTAL_SCHEMA, AGENT_STATE_SCHEMA, TREATMENT_REQUESTS_SCHEMA,
+    enforce_schema
 )
 from util.util import log_print
 
@@ -63,6 +65,7 @@ def extract_exchange_events(log_dir: str):
     
     records = []
     trade_records = []
+    open_orders = {}
     
     for idx, row in df_orders.iterrows():
         ev = row['Event']
@@ -75,7 +78,10 @@ def extract_exchange_events(log_dir: str):
         direction = "BUY" if ev.get('is_buy_order') else "SELL"
         
         records.append({
-            'time': pd.to_datetime(ev.get('time_placed', idx)),
+            # ``idx`` is when the exchange emitted this lifecycle event.  Keeping
+            # placement time separate is essential for ordering/cancellation audits.
+            'time': pd.to_datetime(idx),
+            'time_placed': pd.to_datetime(ev.get('time_placed', idx)),
             'order_id': ev.get('order_id'),
             'agent_id': ev.get('agent_id'),
             'symbol': ev.get('symbol', 'JPM'),
@@ -84,6 +90,26 @@ def extract_exchange_events(log_dir: str):
             'price': ev.get('limit_price', 0),
             'status': status
         })
+
+        order_id = ev.get('order_id')
+        if order_id is not None:
+            if status == 'ACCEPTED':
+                open_orders[order_id] = {
+                    'time_placed': pd.to_datetime(ev.get('time_placed', idx)),
+                    'agent_id': ev.get('agent_id'),
+                    'symbol': ev.get('symbol', 'JPM'),
+                    'direction': direction,
+                    'quantity': int(ev.get('quantity', 0)),
+                    'price': ev.get('limit_price', 0),
+                }
+            elif status == 'EXECUTED' and order_id in open_orders:
+                open_orders[order_id]['quantity'] = max(
+                    0, open_orders[order_id]['quantity'] - int(ev.get('quantity', 0))
+                )
+                if open_orders[order_id]['quantity'] == 0:
+                    del open_orders[order_id]
+            elif status == 'CANCELLED':
+                open_orders.pop(order_id, None)
         
         # Trade Record (from ORDER_EXECUTED)
         if event_type == 'ORDER_EXECUTED':
@@ -98,6 +124,24 @@ def extract_exchange_events(log_dir: str):
                 'seller_id': ev.get('agent_id') if not ev.get('is_buy_order') else pd.NA
             })
 
+    # ABIDES leaves resting orders in the book when the session closes. Record
+    # their remaining quantity as explicitly expired so every lifecycle terminates.
+    expiry_time = pd.to_datetime(df_exch.index.max())
+    for order_id, order in open_orders.items():
+        if order['quantity'] <= 0:
+            continue
+        records.append({
+            'time': expiry_time,
+            'time_placed': order['time_placed'],
+            'order_id': order_id,
+            'agent_id': order['agent_id'],
+            'symbol': order['symbol'],
+            'direction': order['direction'],
+            'quantity': order['quantity'],
+            'price': order['price'],
+            'status': 'EXPIRED',
+        })
+
     df_o = pd.DataFrame(records)
     df_t = pd.DataFrame(trade_records)
 
@@ -107,80 +151,84 @@ def extract_exchange_events(log_dir: str):
     return df_o, df_t
 
 
+def extract_agent_state(log_dir: str):
+    """Extract treatment-agent inventory and cash after every fill."""
+    treatment_files = glob.glob(os.path.join(log_dir, "*_10.bz2"))
+    if not treatment_files:
+        return pd.DataFrame(columns=AGENT_STATE_SCHEMA.keys())
+
+    df_agent = pd.read_pickle(treatment_files[0])
+    state_rows = df_agent[df_agent['EventType'] == 'HOLDINGS_UPDATED']
+    records = []
+    for idx, row in state_rows.iterrows():
+        holdings = row['Event']
+        if not isinstance(holdings, dict):
+            continue
+        records.append({
+            'time': pd.to_datetime(idx),
+            'agent_id': 10,
+            'inventory': holdings.get('JPM', 0),
+            'cash': holdings.get('CASH', 0),
+        })
+    return enforce_schema(pd.DataFrame(records), AGENT_STATE_SCHEMA)
+
+
+def extract_treatment_requests(log_dir: str):
+    """Extract the wrapper's actual submit and cancel requests before exchange handling."""
+    treatment_files = glob.glob(os.path.join(log_dir, "*_10.bz2"))
+    if not treatment_files:
+        return pd.DataFrame(columns=TREATMENT_REQUESTS_SCHEMA.keys())
+
+    df_agent = pd.read_pickle(treatment_files[0])
+    request_rows = df_agent[df_agent['EventType'].isin(['ORDER_SUBMITTED', 'CANCEL_SUBMITTED'])]
+    records = []
+    for idx, row in request_rows.iterrows():
+        order = row['Event']
+        if not isinstance(order, dict):
+            continue
+        records.append({
+            'time': pd.to_datetime(idx),
+            'order_id': order.get('order_id'),
+            'event_type': row['EventType'],
+            'direction': 'BUY' if order.get('is_buy_order') else 'SELL',
+            'quantity': order.get('quantity', 0),
+            'price': order.get('limit_price', 0),
+        })
+    return enforce_schema(pd.DataFrame(records), TREATMENT_REQUESTS_SCHEMA)
+
+
 def extract_book_l1(log_dir: str):
     """
-    Extracts L1 book state from ORDERBOOK_*.bz2.
+    Extracts one-second L1 state from the complete ORDERBOOK snapshot log.
+
+    Negative volume denotes bids and positive volume denotes asks.  Using the
+    snapshot is essential: Exchange BEST_BID/BEST_ASK events do not emit an
+    explicit update when one side becomes empty, so event reconstruction can
+    retain a stale quote and even manufacture a crossed book.
     """
     book_files = glob.glob(os.path.join(log_dir, "ORDERBOOK_*_FREQ_s.bz2"))
     if not book_files:
         print("No ORDERBOOK log found.")
         return pd.DataFrame(columns=BOOK_L1_SCHEMA.keys())
-        
-    df_book = pd.read_pickle(book_files[0])
-    
-    # ABIDES orderbook logs are MultiIndex: (time, quote) -> Volume
-    # We need to compute best bid, best ask per second.
-    # But wait, ABIDES orderbook logs might just be all volumes at all price levels.
-    # A faster proxy is to use EXCHANGE_AGENT BEST_BID / BEST_ASK events.
-    # Let's use EXCHANGE_AGENT instead for exact L1 ticks.
-    
-    exch_path = os.path.join(log_dir, "EXCHANGE_AGENT.bz2")
-    if not os.path.exists(exch_path):
-        return pd.DataFrame(columns=BOOK_L1_SCHEMA.keys())
-        
-    df_exch = pd.read_pickle(exch_path)
-    
-    df_bba = df_exch[df_exch['EventType'].isin(['BEST_BID', 'BEST_ASK'])].copy()
-    if len(df_bba) == 0:
-        return pd.DataFrame(columns=BOOK_L1_SCHEMA.keys())
-        
-    records = []
-    
-    # Track current state
-    current_bid = pd.NA
-    current_bid_sz = pd.NA
-    current_ask = pd.NA
-    current_ask_sz = pd.NA
-    
-    for idx, row in df_bba.iterrows():
-        ev = row['Event'] # e.g. "JPM,100000,34" or "JPM,No bids,0"
-        
-        parts = str(ev).split(',')
-        if len(parts) >= 3:
-            sym = parts[0]
-            price_str = parts[1]
-            sz_str = parts[2]
-            
-            if row['EventType'] == 'BEST_BID':
-                if price_str == "No bids":
-                    current_bid = pd.NA
-                    current_bid_sz = 0
-                else:
-                    current_bid = int(price_str)
-                    current_bid_sz = int(sz_str)
-            else:
-                if price_str == "No asks":
-                    current_ask = pd.NA
-                    current_ask_sz = 0
-                else:
-                    current_ask = int(price_str)
-                    current_ask_sz = int(sz_str)
-            
-            mid = pd.NA
-            if pd.notna(current_bid) and pd.notna(current_ask):
-                mid = (current_bid + current_ask) / 2.0
-                
-            records.append({
-                'time': pd.to_datetime(idx),
-                'symbol': sym,
-                'best_bid': current_bid,
-                'best_bid_sz': current_bid_sz,
-                'best_ask': current_ask,
-                'best_ask_sz': current_ask_sz,
-                'midpoint': mid
-            })
-            
-    df = pd.DataFrame(records)
+
+    raw = pd.read_pickle(book_files[0]).reset_index()
+    raw['time'] = pd.to_datetime(raw['time'])
+    raw['quote'] = pd.to_numeric(raw['quote'])
+    raw['Volume'] = pd.to_numeric(raw['Volume'])
+    times = pd.DataFrame({'time': raw['time'].drop_duplicates().sort_values()})
+
+    bids = raw[raw['Volume'] < 0].sort_values(['time', 'quote'])
+    bids = bids.groupby('time', sort=False).tail(1)[['time', 'quote', 'Volume']]
+    bids = bids.rename(columns={'quote': 'best_bid', 'Volume': 'best_bid_sz'})
+    bids['best_bid_sz'] = -bids['best_bid_sz']
+
+    asks = raw[raw['Volume'] > 0].sort_values(['time', 'quote'])
+    asks = asks.groupby('time', sort=False).head(1)[['time', 'quote', 'Volume']]
+    asks = asks.rename(columns={'quote': 'best_ask', 'Volume': 'best_ask_sz'})
+
+    df = times.merge(bids, on='time', how='left').merge(asks, on='time', how='left')
+    df['symbol'] = 'JPM'
+    df['midpoint'] = (df['best_bid'] + df['best_ask']) / 2.0
     df = enforce_schema(df, BOOK_L1_SCHEMA)
     return df
 
@@ -215,27 +263,30 @@ def main():
     print(f"Extracting logs in {log_dir}...")
     
     decisions_df = extract_decisions(log_dir)
-    if len(decisions_df) > 0:
-        decisions_df.to_parquet(os.path.join(log_dir, "decisions.parquet"))
-        print(f"  Wrote decisions.parquet ({len(decisions_df)} rows)")
+    decisions_df.to_parquet(os.path.join(log_dir, "decisions.parquet"))
+    print(f"  Wrote decisions.parquet ({len(decisions_df)} rows)")
         
     orders_df, trades_df = extract_exchange_events(log_dir)
-    if len(orders_df) > 0:
-        orders_df.to_parquet(os.path.join(log_dir, "orders.parquet"))
-        print(f"  Wrote orders.parquet ({len(orders_df)} rows)")
-    if len(trades_df) > 0:
-        trades_df.to_parquet(os.path.join(log_dir, "trades.parquet"))
-        print(f"  Wrote trades.parquet ({len(trades_df)} rows)")
+    orders_df.to_parquet(os.path.join(log_dir, "orders.parquet"))
+    print(f"  Wrote orders.parquet ({len(orders_df)} rows)")
+    trades_df.to_parquet(os.path.join(log_dir, "trades.parquet"))
+    print(f"  Wrote trades.parquet ({len(trades_df)} rows)")
         
     book_df = extract_book_l1(log_dir)
-    if len(book_df) > 0:
-        book_df.to_parquet(os.path.join(log_dir, "book_l1.parquet"))
-        print(f"  Wrote book_l1.parquet ({len(book_df)} rows)")
+    book_df.to_parquet(os.path.join(log_dir, "book_l1.parquet"))
+    print(f"  Wrote book_l1.parquet ({len(book_df)} rows)")
         
     fund_df = extract_fundamental(log_dir)
-    if len(fund_df) > 0:
-        fund_df.to_parquet(os.path.join(log_dir, "fundamental.parquet"))
-        print(f"  Wrote fundamental.parquet ({len(fund_df)} rows)")
+    fund_df.to_parquet(os.path.join(log_dir, "fundamental.parquet"))
+    print(f"  Wrote fundamental.parquet ({len(fund_df)} rows)")
+
+    state_df = extract_agent_state(log_dir)
+    state_df.to_parquet(os.path.join(log_dir, "agent_state.parquet"))
+    print(f"  Wrote agent_state.parquet ({len(state_df)} rows)")
+
+    requests_df = extract_treatment_requests(log_dir)
+    requests_df.to_parquet(os.path.join(log_dir, "treatment_requests.parquet"))
+    print(f"  Wrote treatment_requests.parquet ({len(requests_df)} rows)")
         
     print("Done.")
 

@@ -5,8 +5,8 @@ Orchestrator script that loops over seeds and cells to run the full
 experimental matrix (or a subset of it).
 
 Usage:
-    python run_matrix.py --phase pilot          # 3 seeds × 10 cells = 30 runs
-    python run_matrix.py --phase final          # 30 seeds × 10 cells = 300 runs
+    python run_matrix.py --phase pilot          # 3 seeds x 10 cells = 30 runs
+    python run_matrix.py --phase final          # 30 seeds x 10 cells = 300 runs
     python run_matrix.py --seeds 1001 1002 --cells C1-N C2-N   # custom subset
 
 After all simulations complete, the script automatically invokes the
@@ -20,7 +20,7 @@ import os
 import time
 import json
 
-# ── Experiment Design Constants ──────────────────────────────────────────────
+# Experiment Design Constants
 
 CELLS = [
     "C1-N", "C2-N", "C3-N", "C4-N", "C5-N",
@@ -28,7 +28,7 @@ CELLS = [
 ]
 
 PILOT_SEEDS  = [1001, 1002, 1003]
-FINAL_SEEDS  = list(range(1001, 1031))  # 1001..1030 inclusive → 30 seeds
+FINAL_SEEDS  = list(range(2001, 2031))  # 2001..2030 inclusive: 30 seeds
 
 
 def run_single_cell(cell: str, seed: int, verbose: bool = False):
@@ -44,10 +44,10 @@ def run_single_cell(cell: str, seed: int, verbose: bool = False):
     success = result.returncode == 0
 
     if not success:
-        print(f"  ✗ {cell} seed={seed} FAILED in {elapsed:.1f}s")
+        print(f"  FAIL {cell} seed={seed} in {elapsed:.1f}s")
         print(f"    STDERR: {result.stderr[-500:]}")
     else:
-        print(f"  ✓ {cell} seed={seed} OK in {elapsed:.1f}s")
+        print(f"  OK {cell} seed={seed} in {elapsed:.1f}s")
 
     return {
         "cell": cell,
@@ -63,17 +63,17 @@ def extract_logs(cell: str, seed: int):
     """Runs the Parquet log extractor on a completed run directory."""
     log_dir = os.path.join("output", "raw", cell, str(seed))
     if not os.path.isdir(log_dir):
-        print(f"  ⚠ Log dir not found for {cell}/{seed}, skipping extraction.")
+        print(f"  WARNING Log dir not found for {cell}/{seed}, skipping extraction.")
         return False
 
     cmd = [sys.executable, "-m", "logging_.writers", log_dir]
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__)))
 
     if result.returncode != 0:
-        print(f"  ⚠ Extraction failed for {cell}/{seed}: {result.stderr[-300:]}")
+        print(f"  WARNING Extraction failed for {cell}/{seed}: {result.stderr[-300:]}")
         return False
     else:
-        print(f"  📦 Extracted parquet for {cell}/{seed}")
+        print(f"  EXTRACTED parquet for {cell}/{seed}")
         return True
 
 
@@ -107,7 +107,7 @@ def main():
 
     total_runs = len(seeds) * len(cells)
     print("=" * 70)
-    print(f"EXPERIMENT MATRIX: {len(cells)} cells × {len(seeds)} seeds = {total_runs} runs")
+    print(f"EXPERIMENT MATRIX: {len(cells)} cells x {len(seeds)} seeds = {total_runs} runs")
     print(f"  Cells: {', '.join(cells)}")
     print(f"  Seeds: {seeds}")
     print("=" * 70)
@@ -117,17 +117,19 @@ def main():
     failed = 0
 
     for seed in seeds:
-        print(f"\n── Seed {seed} ──")
+        print(f"\n-- Seed {seed} --")
         for cell in cells:
             completed += 1
             print(f"\n[{completed}/{total_runs}] Running {cell} / seed={seed}...")
             r = run_single_cell(cell, seed, verbose=args.verbose)
-            results.append(r)
 
             if r["success"] and not args.skip_extract:
-                extract_logs(cell, seed)
+                r["extraction_success"] = extract_logs(cell, seed)
+                if not r["extraction_success"]:
+                    failed += 1
             elif not r["success"]:
                 failed += 1
+            results.append(r)
 
     # Summary
     print("\n" + "=" * 70)
@@ -154,7 +156,7 @@ def main():
     print(f"Summary written to: {summary_path}")
 
     if failed > 0:
-        print(f"\n⚠ {failed} runs failed. Check stderr output above.")
+        print(f"\nWARNING: {failed} runs failed. Check stderr output above.")
         sys.exit(1)
 
 

@@ -134,6 +134,8 @@ class FixedWrapperAgent(TradingAgent):
             "policy_side": chosen_side,
             "final_side": side,
             "limit_price": limit_price,
+            "snapshot_best_bid": bid,
+            "snapshot_best_ask": ask,
             "quantity": self.lot_size,
             "inventory": holdings,
             "cash": cash
@@ -145,6 +147,9 @@ class FixedWrapperAgent(TradingAgent):
             log_payload['llm_valid'] = state_snapshot['llm_valid']
             log_payload['llm_fallback_used'] = state_snapshot['llm_fallback_used']
             log_payload['llm_latency_ms'] = state_snapshot['llm_latency_ms']
+            log_payload['llm_timeout'] = state_snapshot['llm_timeout']
+            log_payload['llm_tokens_in'] = state_snapshot['llm_tokens_in']
+            log_payload['llm_tokens_out'] = state_snapshot['llm_tokens_out']
             log_payload['llm_prompt'] = state_snapshot['llm_prompt']
 
         self.logEvent("WRAPPER_DECISION", log_payload)

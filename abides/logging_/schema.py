@@ -11,6 +11,8 @@ DECISIONS_SCHEMA = {
     'policy_side': 'string',
     'final_side': 'string',
     'limit_price': 'int64',
+    'snapshot_best_bid': 'Int64',
+    'snapshot_best_ask': 'Int64',
     'quantity': 'int64',
     'inventory': 'int64',
     'cash': 'int64',
@@ -18,18 +20,38 @@ DECISIONS_SCHEMA = {
     'llm_valid': 'boolean',
     'llm_fallback_used': 'boolean',
     'llm_latency_ms': 'Int64',  # nullable int
+    'llm_timeout': 'boolean',
+    'llm_tokens_in': 'Int64',
+    'llm_tokens_out': 'Int64',
     'llm_prompt': 'string'
 }
 
 ORDERS_SCHEMA = {
     'time': 'datetime64[ns]',
+    'time_placed': 'datetime64[ns]',
     'order_id': 'Int64',
     'agent_id': 'Int64',
     'symbol': 'string',
     'direction': 'string',  # "BUY" or "SELL"
     'quantity': 'int64',
     'price': 'int64',
-    'status': 'string'  # "ACCEPTED", "CANCELLED", "EXECUTED"
+    'status': 'string'  # "ACCEPTED", "CANCELLED", "EXECUTED", "EXPIRED"
+}
+
+AGENT_STATE_SCHEMA = {
+    'time': 'datetime64[ns]',
+    'agent_id': 'Int64',
+    'inventory': 'int64',
+    'cash': 'int64',
+}
+
+TREATMENT_REQUESTS_SCHEMA = {
+    'time': 'datetime64[ns]',
+    'order_id': 'Int64',
+    'event_type': 'string',  # ORDER_SUBMITTED or CANCEL_SUBMITTED
+    'direction': 'string',
+    'quantity': 'int64',
+    'price': 'int64',
 }
 
 TRADES_SCHEMA = {

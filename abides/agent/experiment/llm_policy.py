@@ -1,5 +1,4 @@
 import json
-import traceback
 import time
 import requests
 import numpy as np
@@ -33,7 +32,14 @@ class LLMPolicy:
         
         self.use_openai = OpenAI is not None
         if self.use_openai:
-            self.client = OpenAI(base_url=self.server_url, api_key='ollama')
+            # The SDK retries twice by default. The experiment protocol permits one
+            # model call per wake-up, so retries must be disabled explicitly.
+            self.client = OpenAI(
+                base_url=self.server_url,
+                api_key='ollama',
+                max_retries=0,
+                timeout=30.0,
+            )
 
     def choose_side(self, state: dict) -> str:
         user_prompt = build_user_prompt(state)
@@ -43,6 +49,9 @@ class LLMPolicy:
         parsed_side = None
         raw_output = ""
         latency_ms = 0
+        timed_out = False
+        tokens_in = None
+        tokens_out = None
         
         start_t = time.time()
         
@@ -60,7 +69,11 @@ class LLMPolicy:
                     timeout=30.0
                 )
                 raw_output = response.choices[0].message.content
-                decision = json.loads(raw_output)
+                usage = getattr(response, "usage", None)
+                if usage is not None:
+                    tokens_in = getattr(usage, "prompt_tokens", None)
+                    tokens_out = getattr(usage, "completion_tokens", None)
+                decision = self._parse_json(raw_output)
             else:
                 # Fallback to requests if openai not installed
                 payload = {
@@ -79,8 +92,11 @@ class LLMPolicy:
                 url = self.server_url.replace('/v1', '/api/chat')
                 res = requests.post(url, json=payload, timeout=30.0)
                 res.raise_for_status()
-                raw_output = res.json()['message']['content']
-                decision = json.loads(raw_output)
+                response_json = res.json()
+                raw_output = response_json['message']['content']
+                tokens_in = response_json.get('prompt_eval_count')
+                tokens_out = response_json.get('eval_count')
+                decision = self._parse_json(raw_output)
                 
             parsed_side = decision.get("side", None)
             if parsed_side not in ["BUY", "SELL"]:
@@ -91,6 +107,7 @@ class LLMPolicy:
             log_print("LLMPolicy query failed: {}", str(e))
             valid = False
             fallback_used = True
+            timed_out = self._is_timeout(e)
 
         latency_ms = int((time.time() - start_t) * 1000)
             
@@ -106,6 +123,36 @@ class LLMPolicy:
         state['llm_valid'] = valid
         state['llm_fallback_used'] = fallback_used
         state['llm_latency_ms'] = latency_ms
+        state['llm_timeout'] = timed_out
+        state['llm_tokens_in'] = tokens_in
+        state['llm_tokens_out'] = tokens_out
         state['llm_prompt'] = user_prompt
         
         return parsed_side
+
+    @staticmethod
+    def _parse_json(raw_output: str) -> dict:
+        """Parse a JSON-only response, allowing one surrounding Markdown fence."""
+        text = (raw_output or "").strip()
+        if text.startswith("```") and text.endswith("```"):
+            lines = text.splitlines()
+            if len(lines) >= 3:
+                text = "\n".join(lines[1:-1]).strip()
+        decision = json.loads(text)
+        if not isinstance(decision, dict):
+            raise ValueError("LLM response must be a JSON object")
+        return decision
+
+    @staticmethod
+    def _is_timeout(exc: Exception) -> bool:
+        """Recognize timeout exceptions from requests and OpenAI/httpx clients."""
+        current = exc
+        seen = set()
+        while current is not None and id(current) not in seen:
+            seen.add(id(current))
+            if isinstance(current, requests.exceptions.Timeout):
+                return True
+            if "timeout" in current.__class__.__name__.lower():
+                return True
+            current = getattr(current, "__cause__", None) or getattr(current, "__context__", None)
+        return False

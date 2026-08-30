@@ -7,7 +7,7 @@ import pandas as pd
 from Kernel import Kernel
 from util import util
 from model.LatencyModel import LatencyModel
-from util.oracle.SparseMeanRevertingOracle import SparseMeanRevertingOracle
+from agent.experiment.paired_oracle import PairedFundamentalOracle
 
 from agent.ExchangeAgent import ExchangeAgent
 from agent.ZeroIntelligenceAgent import ZeroIntelligenceAgent
@@ -89,18 +89,15 @@ def build_experiment_config(cell_id: str, regime: str, master_seed: int,
         }
     }
 
-    if regime == "S":
-        try:
-            from agent.experiment.shock_oracle import ShockOracle
-            shock_cfg_path = os.path.join(config_dir, "shock.yaml")
-            shock_time = historical_date + pd.to_timedelta('12:30:00')
-            shock_magnitude = 8000  # 8000 cents ($80)
-            oracle = ShockOracle(mkt_open, mkt_close, symbols,
-                                 shock_time=shock_time, shock_magnitude=shock_magnitude)
-        except ImportError:
-            oracle = SparseMeanRevertingOracle(mkt_open, mkt_close, symbols)
-    else:
-        oracle = SparseMeanRevertingOracle(mkt_open, mkt_close, symbols)
+    shock_time = historical_date + pd.to_timedelta('12:30:00') if regime == "S" else None
+    shock_magnitude = 8000 if regime == "S" else 0
+    oracle = PairedFundamentalOracle(
+        mkt_open,
+        mkt_close,
+        symbols,
+        shock_time=shock_time,
+        shock_magnitude=shock_magnitude,
+    )
 
     # 2. Exchange Agent (id=0)
     agent_count = 0
