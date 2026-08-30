@@ -1,0 +1,10 @@
+{
+  "cell_id": "C3",
+  "regime": "S",
+  "cell_full": "C3-S",
+  "seed": 1002,
+  "agent_count": 11,
+  "wall_clock_seconds": 1067.00448,
+  "simulation_start": "2026-08-30 21:04:25.017805",
+  "simulation_end": "2026-08-30 21:22:12.022285"
+}
